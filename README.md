@@ -16,7 +16,6 @@ Repositório para a implementação computacional dos métodos de isolamento e r
  1. Criar e acessar o diretório de build
 ```
 mkdir -p build && cd build
-
 ```
  2. Configurar o gerador MinGW no CMake
 ```
