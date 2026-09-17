@@ -13,20 +13,20 @@ Repositório para a implementação computacional dos métodos de isolamento e r
 
 ## Como compilar
 
-# 1. Criar e acessar o diretório de build
+ 1. Criar e acessar o diretório de build
 ```
 mkdir -p build && cd build
 
 ```
-# 2. Configurar o gerador MinGW no CMake
+ 2. Configurar o gerador MinGW no CMake
 ```
 cmake -G "MinGW Makefiles" ..
 ```
-# 3. Compilar o projeto
+ 3. Compilar o projeto
 ```
 cmake --build .
 ```
-# 4. Executar o programa
+ 4. Executar o programa
 ```
 .\calculo_numerico.exe
 ```
