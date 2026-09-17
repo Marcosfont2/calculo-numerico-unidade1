@@ -1,0 +1,20 @@
+# Ignorar arquivos temporários e binários de compilação
+build/
+bin/
+*.exe
+*.obj
+*.o
+*.out
+
+# Arquivos temporários do CMake e do VS Code
+CMakeCache.txt
+CMakeFiles/
+.vscode/
+
+# Arquivos auxiliares do LaTeX (se compilar localmente depois)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
