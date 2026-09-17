@@ -75,8 +75,4 @@ int main() {
         std::cout << "\n";
     }
 
-    // Crie uma estrutura para gerar uma tabela em LaTeX na pasta docs/
-    Utils::exportarTabelaLatex("docs/tabela_resultados.tex", todosResultados);
-
-    return 0;
 }
