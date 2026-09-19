@@ -28,7 +28,7 @@ struct ProblemaFuncao {
     std::string expressao;                         // Ex: "2x^4 + 4x^3 + 3x^2 - 10x - 15"
     std::function<double(double)> f;              // Função f(x)
     std::function<double(double)> df;             // Derivada f'(x) (nos casos que for necessária)
-    // Adicionem aqui depois o método para a função de ativação (phi) quando for necessário
+    std::function<double(double)> phi;            // função de iteração para o ponto fixo
     Intervalo intervaloInicial;                    // Intervalo I = [a, b]
     double passoH;                                 // Passo h para varredura
 };
