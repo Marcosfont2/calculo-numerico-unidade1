@@ -5,6 +5,7 @@
 #include "include/Tipos.hpp"
 #include "include/Isolamento.hpp"
 #include "include/Bisseccao.hpp"
+#include "include/PontoFixo.hpp"
 #include "include/Utils.hpp"
 
 int main() {
@@ -16,6 +17,7 @@ int main() {
             "f1(x) = 2x^4 + 4x^3 + 3x^2 - 10x - 15",
             [](double x) { return 2*std::pow(x, 4) + 4*std::pow(x, 3) + 3*std::pow(x, 2) - 10*x - 15; },
             [](double x) { return 8*std::pow(x, 3) + 12*std::pow(x, 2) + 6*x - 10; },
+            [](double x) { return (2*std::pow(x, 4) + 4*std::pow(x, 3) + 3*std::pow(x, 2) - 15) / 10.0; }, // para o ponto fixo
             {0.0, 3.0},
             0.6
         },
@@ -24,6 +26,7 @@ int main() {
             "f2(x) = x^5 - 2x^4 - 9x^3 + 22x^2 + 4x - 24",
             [](double x) { return std::pow(x, 5) - 2*std::pow(x, 4) - 9*std::pow(x, 3) + 22*std::pow(x, 2) + 4*x - 24; },
             [](double x) { return 5*std::pow(x, 4) - 8*std::pow(x, 3) - 27*std::pow(x, 2) + 44*x + 4; },
+            [](double x) { return (std::pow(x, 5) - 2*std::pow(x, 4) - 9*std::pow(x, 3) + 22*std::pow(x, 2) - 24) / 4.0; }, // para o ponto fixo
             {0.0, 5.0},
             0.7
         },
