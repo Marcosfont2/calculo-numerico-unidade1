@@ -48,7 +48,7 @@ public:
 
         // fim da contagem do tempo de execução
         auto fim = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::micro> duracao = fim - incio;
+        std::chrono::duration<double, std::micro> duracao = fim - inicio;
 
         res.raiz = x;
         res.fRaiz = f(x);

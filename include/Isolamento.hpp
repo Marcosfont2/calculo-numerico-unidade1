@@ -8,7 +8,9 @@
 
 class Isolamento {
 public:
-    // Realiza a busca por varredura no intervalo I com passo h
+    // Realiza a busca por varredura no intervalo I com passo h.
+    // Entrada: problema com função, intervalo inicial e passo positivo. Saída: subintervalos
+    // onde há mudança de sinal ou um ponto amostrado que já representa uma raiz.
     static std::vector<Intervalo> buscarSubintervalos(const ProblemaFuncao& prob) {
         std::vector<Intervalo> subintervalos;
         double a = prob.intervaloInicial.a;

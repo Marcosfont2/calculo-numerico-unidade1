@@ -12,3 +12,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Define o executável principal
 add_executable(calculo_numerico main.cpp)
+
+option(BENCHMARK_WITH_FALSE_POSITION "Inclui falsa posicao no benchmark" OFF)
+
+add_executable(comparar_metodos benchmarks/compare.cpp)
+
+if(BENCHMARK_WITH_FALSE_POSITION)
+    target_compile_definitions(comparar_metodos PRIVATE BENCHMARK_WITH_FALSE_POSITION)
+endif()
