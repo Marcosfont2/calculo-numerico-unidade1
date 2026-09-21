@@ -23,7 +23,7 @@ inline double df1(double x) {
 // Calcula a função de iteração escolhida para f1 no método do ponto fixo.
 // Entrada: aproximação atual x. Saída: próxima aproximação phi(x).
 inline double phi1(double x) {
-    return (2.0 * std::pow(x, 4) + 4.0 * std::pow(x, 3) + 3.0 * std::pow(x, 2) - 15.0) / 10.0;
+    return std::sqrt((10.0 * x + 15.0) / (2.0 * x * x + 4.0 * x + 3.0));
 }
 
 // Calcula a segunda função do enunciado.
@@ -42,8 +42,7 @@ inline double df2(double x) {
 // Calcula a função de iteração escolhida para f2 no método do ponto fixo.
 // Entrada: aproximação atual x. Saída: próxima aproximação phi(x).
 inline double phi2(double x) {
-    return (std::pow(x, 5) - 2.0 * std::pow(x, 4) - 9.0 * std::pow(x, 3) +
-            22.0 * std::pow(x, 2) - 24.0) / 4.0;
+    return x - std::cbrt(f2(x) / 12.0);
 }
 
 // Calcula a terceira função do enunciado.
@@ -58,6 +57,12 @@ inline double df3(double x) {
     return 15.0 * std::pow(x, 2) + 2.0 * x + 2.0 * std::exp(1.0 - 2.0 * x) - std::sin(x);
 }
 
+// Calcula a função de iteração escolhida para f3 no método do ponto fixo
+// Entrada: aproximação atual x. Saída: próxima aproximação phi(x).
+inline double phi3(double x){
+    return (1.0 - std::log(5.0 * std::pow(x, 3) + x * x + std::cos(x) + 20.0)) / 2.0;
+}
+
 // Calcula a quarta função do enunciado.
 // Entrada: valor real x. Saída: sen(x)x + 4.
 inline double f4(double x) {
@@ -70,14 +75,20 @@ inline double df4(double x) {
     return std::cos(x) * x + std::sin(x);
 }
 
+// Calcula a função de iteração escolhida para f4 no método do ponto fixo.
+// Entrada: aproximação atual x. Saída: próxima aproximação phi(x).
+inline double phi4(double x){
+    return M_PI + std::asin(4.0 / x);
+}
+
 // Fornece todos os problemas definidos no enunciado em uma única fonte de dados.
 // Entrada: não recebe argumentos. Saída: referências às funções, derivadas, intervalos e passos h.
 inline const std::vector<ProblemaFuncao>& all() {
     static const std::vector<ProblemaFuncao> problems = {
         {"f1", "f1(x) = 2x^4 + 4x^3 + 3x^2 - 10x - 15", f1, df1, phi1, {0.0, 3.0}, 0.6},
         {"f2", "f2(x) = x^5 - 2x^4 - 9x^3 + 22x^2 + 4x - 24", f2, df2, phi2, {0.0, 5.0}, 0.7},
-        {"f3", "f3(x) = 5x^3 + x^2 - e^(1-2x) + cos(x) + 20", f3, df3, {}, {-5.0, 5.0}, 0.5},
-        {"f4", "f4(x) = sen(x)*x + 4", f4, df4, {}, {1.0, 5.0}, 0.5}
+        {"f3", "f3(x) = 5x^3 + x^2 - e^(1-2x) + cos(x) + 20", f3, df3, phi3, {-5.0, 5.0}, 0.5},
+        {"f4", "f4(x) = sen(x)*x + 4", f4, df4, phi4, {1.0, 5.0}, 0.5}
     };
     return problems;
 }

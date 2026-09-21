@@ -29,6 +29,9 @@ public:
             double proximo = phi(x);
             // verificação se o resultado da função de iteração é válido
             if (!std::isfinite(proximo)){
+                res.raiz = x;
+                res.fRaiz = f(x);
+                res.iteracoes = iter;
                 res.convergiu = false;
                 res.mensagemErro = "A função de iteracao gerou um valor invalido";
                 return res;
