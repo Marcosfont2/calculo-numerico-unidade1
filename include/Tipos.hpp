@@ -11,6 +11,7 @@ enum class MetodoStatus {
     NaoExecutado,
     RaizExata,
     ToleranciaFuncao,
+    ToleranciaPasso,
     ToleranciaIntervalo,
     ArgumentoInvalido,
     EntradaNaoFinita,
@@ -30,6 +31,7 @@ inline const char* textoStatusMetodo(MetodoStatus status) {
         case MetodoStatus::NaoExecutado: return "not-run";
         case MetodoStatus::RaizExata: return "exact-root";
         case MetodoStatus::ToleranciaFuncao: return "function-tolerance";
+        case MetodoStatus::ToleranciaPasso: return "step-tolerance";
         case MetodoStatus::ToleranciaIntervalo: return "interval-tolerance";
         case MetodoStatus::ArgumentoInvalido: return "invalid-argument";
         case MetodoStatus::EntradaNaoFinita: return "nonfinite-input";
@@ -62,6 +64,8 @@ struct ResultadoMetodo {
     MetodoStatus status = MetodoStatus::NaoExecutado;
     Intervalo intervaloFinal = {0.0, 0.0};
     std::size_t avaliacoesFuncao = 0;
+    std::size_t avaliacoesDerivada = 0;
+    std::size_t avaliacoesPhi = 0;
     std::size_t tentativasExtrapolacao = 0;
     std::size_t extrapolacoesAceitas = 0;
     std::size_t fallbacksBisseccao = 0;

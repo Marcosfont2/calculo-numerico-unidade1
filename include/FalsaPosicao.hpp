@@ -1,5 +1,5 @@
 #ifndef FALSA_POSICAO_HPP
-#define FALSE_POSICAO_HPP
+#define FALSA_POSICAO_HPP
 
 #include "Tipos.hpp"
 #include <cmath>
@@ -16,87 +16,138 @@ class FalsaPosicao {
     ) {
         ResultadoMetodo res;
         res.nomeMetodo = "Falsa Posicao";
+        res.intervaloFinal = {a_in, b_in};
+        const auto inicio = std::chrono::high_resolution_clock::now();
+        const auto finalizar = [&res, &inicio]() {
+            const auto fim = std::chrono::high_resolution_clock::now();
+            res.tempoMicrosegundos = std::chrono::duration<double, std::micro>(fim - inicio).count();
+            return res;
+        };
+        const auto avaliar = [&f, &res](double x, double& valor) {
+            ++res.avaliacoesFuncao;
+            valor = f(x);
+            return std::isfinite(valor);
+        };
+        const auto sinaisOpostos = [](double esquerda, double direita) {
+            return (esquerda < 0.0 && direita > 0.0) || (esquerda > 0.0 && direita < 0.0);
+        };
 
-        // inicio da contagem do tempo de execução
-        auto inicio = std::chrono::high_resolution_clock::now();
+        if (!f || !std::isfinite(a_in) || !std::isfinite(b_in) || !std::isfinite(tol) || tol < 0.0 || maxIter <= 0) {
+            res.status = MetodoStatus::ArgumentoInvalido;
+            res.mensagemErro = "Funcao, intervalo, tolerancia ou maximo de iteracoes invalido";
+            return finalizar();
+        }
+        if (!(a_in < b_in)) {
+            res.status = MetodoStatus::IntervaloInvalido;
+            res.mensagemErro = "O intervalo deve obedecer a < b";
+            return finalizar();
+        }
 
         double a = a_in;
         double b = b_in;
-        double fa = f(a);
-        double fb = f(b);
-
-        // validação inicial do teorema de Bolzano: f(a) e f(b) têm que ter sinais opostos
-        if (fa * fb > 0.0){
+        double fa;
+        double fb;
+        if (!avaliar(a, fa) || !avaliar(b, fb)) {
+            res.status = MetodoStatus::AvaliacaoNaoFinita;
+            res.mensagemErro = "A funcao gerou um valor nao finito";
+            return finalizar();
+        }
+        if (fa == 0.0 || fb == 0.0) {
+            res.raiz = fa == 0.0 ? a : b;
+            res.fRaiz = fa == 0.0 ? fa : fb;
+            res.intervaloFinal = {res.raiz, res.raiz};
+            res.status = MetodoStatus::RaizExata;
+            res.convergiu = true;
+            return finalizar();
+        }
+        if (!sinaisOpostos(fa, fb)) {
             res.raiz = a;
             res.fRaiz = fa;
-            res.iteracoes = 0;
-            res.convergiu = false;
-            res.mensagemErro = "Intervalor invalid: f(a) e f(b) possuem o mesmo sinal";
-            return res; 
+            res.status = MetodoStatus::SemMudancaDeSinal;
+            res.mensagemErro = "Nao existe mudanca de sinal nas extremidades";
+            return finalizar();
         }
 
-        double x_atual = a;
-        int iter = 0;
-
-        while (iter < maxIter) {
-            // evita divisão por zero se f(a) e f(b) forem quase iguais 
-            if (std::abs(fb - fa) < 1e-12){
-                res.raiz = x_atual;
-                res.fRaiz = f(x_atual);
-                res.iteracoes = iter;
-                res.convergiu = false;
-                res.mensagemErro = "Divisao por zero: f(a) e f(b) sao muito proximos";
-                return res;
+        double atual = a;
+        double fAtual = fa;
+        for (int iteracao = 1; iteracao <= maxIter; ++iteracao) {
+            const double denominador = fb - fa;
+            if (!std::isfinite(denominador) || denominador == 0.0) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.intervaloFinal = {a, b};
+                res.status = MetodoStatus::FalhaNumerica;
+                res.mensagemErro = "Denominador nulo ou nao finito na interpolacao";
+                return finalizar();
+            }
+            const double proximo = (a * fb - b * fa) / denominador;
+            if (!std::isfinite(proximo)) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.intervaloFinal = {a, b};
+                res.status = MetodoStatus::FalhaNumerica;
+                res.mensagemErro = "A interpolacao gerou um valor nao finito";
+                return finalizar();
+            }
+            double fProximo;
+            if (!avaliar(proximo, fProximo)) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.intervaloFinal = {a, b};
+                res.status = MetodoStatus::AvaliacaoNaoFinita;
+                res.mensagemErro = "A funcao gerou um valor nao finito";
+                return finalizar();
             }
 
-            // média ponderada pela interpolação linear
-            double x_novo = (a * fb - b * fa) / (fb - fa);
-            double fx = f(x_novo);
-
-            // verificação se o x_novo é válido
-            if (!std::isfinite(x_novo)){
-                res.raiz = x_atual;
-                res.fRaiz = fx;
-                res.iteracoes = iter;
-                res.convergiu = false;
-                res.mensagemErro = "O calculo gerou um valor numerico invalido";
-                return res;
+            res.raiz = proximo;
+            res.fRaiz = fProximo;
+            res.iteracoes = iteracao;
+            if (fProximo == 0.0) {
+                res.intervaloFinal = {proximo, proximo};
+                res.status = MetodoStatus::RaizExata;
+                res.convergiu = true;
+                return finalizar();
+            }
+            if (std::abs(fProximo) <= tol) {
+                res.intervaloFinal = {a, b};
+                res.status = MetodoStatus::ToleranciaFuncao;
+                res.convergiu = true;
+                return finalizar();
+            }
+            if (iteracao > 1 && std::abs(proximo - atual) <= tol) {
+                res.intervaloFinal = {a, b};
+                res.status = MetodoStatus::ToleranciaPasso;
+                res.convergiu = true;
+                return finalizar();
             }
 
-            iter++;
-
-            // critério de parada: variação em x ou f(x) próximo de zero
-            if (iter > 1 && (std::abs(x_novo - x_atual) < tol || std::abs(fx) < tol)){
-                x_atual = x_novo;
-                break;
-            }
-
-            x_atual = x_novo;
-
-            // mantém o enquadramento do sinal da raiz
-            if (fa * fx < 0.0){
-                b = x_novo;
-                fb + fx;
+            if (sinaisOpostos(fa, fProximo)) {
+                b = proximo;
+                fb = fProximo;
             } else {
-                a = x_novo;
-                fa = fx;
+                a = proximo;
+                fa = fProximo;
             }
+            res.intervaloFinal = {a, b};
+            if (b - a <= tol) {
+                res.status = MetodoStatus::ToleranciaIntervalo;
+                res.convergiu = true;
+                return finalizar();
+            }
+            atual = proximo;
+            fAtual = fProximo;
         }
 
-        // fim da contagem do tempo de execução
-        auto fim = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::micro> duracao = fim - inicio;
-
-        res.raiz = x_atual;
-        res.fRaiz = f(x_atual);
-        res.iteracoes = iter;
-        res.tempoMicrosegundos = duracao.count();
-        res.convergiu = (iter < maxIter);
-        if (!res.convergiu && res.mensagemErro.empty()){
-            res.mensagemErro = "Numero maximo de iteracoes atingido sem convergencia";
-        }
-
-        return res;
+        res.raiz = atual;
+        res.fRaiz = fAtual;
+        res.intervaloFinal = {a, b};
+        res.iteracoes = maxIter;
+        res.status = MetodoStatus::MaximoDeIteracoes;
+        res.mensagemErro = "Numero maximo de iteracoes atingido sem convergencia";
+        return finalizar();
     }
 };
 

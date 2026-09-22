@@ -1,0 +1,230 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{float}
+
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue,citecolor=black}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0.25em}
+\renewcommand{\abstractname}{Resumo}
+\renewcommand{\tablename}{Tabela}
+
+\title{\textbf{Isolamento e Refinamento de Raízes de Funções}\\
+\large Relatório da Unidade I}
+\author{\begin{tabular}{c}
+Marco Antônio Fontes Leite\\
+Maria Eduarda da Silva Ribeiro\\
+Matheus Raphael Trindade Guedes
+\end{tabular}\\[0.5cm]
+\textit{Cálculo Numérico para Ciência da Computação}}
+\date{22 de setembro de 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este relatório apresenta a implementação computacional das etapas de isolamento e refinamento de raízes reais de funções. Foram implementados os métodos da Bissecção, Falsa Posição, Ponto Fixo, Newton, Secante e uma estratégia proposta que combina bissecção, falsa posição e extrapolação controlada. Os experimentos consideram os quatro problemas especificados no enunciado, precisão de $10^{-6}$ e até 1000 iterações. Além da raiz aproximada, foram registrados erro absoluto, residual, iterações, avaliações de funções e tempo de execução. Os resultados mostram que a escolha do método depende da função e das condições iniciais; em particular, a raiz múltipla do segundo problema evidencia que um residual pequeno não basta, isoladamente, para avaliar a qualidade da aproximação.
+\end{abstract}
+
+\section{Introdução}
+
+Determinar uma raiz de uma função consiste em encontrar um valor $x$ tal que $f(x)=0$. Para polinômios de baixo grau, por vezes é possível usar fórmulas analíticas; entretanto, para funções de grau elevado ou transcendentes, procedimentos iterativos são uma alternativa prática. A resolução foi organizada em duas etapas: primeiro, identifica-se um intervalo que contenha uma raiz; em seguida, aplica-se um método de refinamento para melhorar a aproximação.
+
+O trabalho implementa integralmente os métodos solicitados no enunciado e uma estratégia adicional. A comparação considera precisão, residual, número de iterações, quantidade de avaliações e tempo de execução, conforme a estrutura de análise utilizada nos materiais auxiliares.
+
+\section{Ambiente computacional e implementação}
+
+Os programas foram desenvolvidos em C++17. A execução que gerou as tabelas deste relatório foi realizada em Linux Fedora, arquitetura \texttt{x86\_64}, processador Intel Core i5-13420H (12 unidades lógicas de processamento), aproximadamente 23 GiB de memória RAM e compilador \texttt{g++ 15.3.1}. Os tempos devem ser interpretados como medidas do ambiente descrito, e não como valores absolutos transferíveis para qualquer máquina.
+
+As implementações retornam uma estrutura comum contendo raiz aproximada, valor $f(x)$, status de término, número de iterações, tempo em microssegundos e contadores de avaliações. Para Newton, contam-se separadamente as chamadas de $f$ e $f'$; para Ponto Fixo, contam-se as chamadas de $f$ e de $\phi$. O benchmark executa cada combinação problema--método 30 vezes e apresenta a mediana do tempo, reduzindo a influência de variações pontuais de medição.
+
+\section{Fundamentação e métodos empregados}
+
+\subsection{Isolamento}
+
+Para uma função contínua, se $f(a)f(b)<0$, o Teorema de Bolzano garante a existência de pelo menos uma raiz em $(a,b)$. O programa percorre o intervalo inicial com passo $h$, avalia os extremos de cada subintervalo e registra aqueles em que há troca de sinal. Um ponto amostrado com $|f(x)|<10^{-12}$ também é registrado como raiz isolada. Esse tabelamento é a base numérica para observar o comportamento da função e selecionar os intervalos de refinamento.
+
+\subsection{Métodos de refinamento}
+
+\textbf{Bissecção.} Mantém um intervalo com troca de sinal e substitui um extremo pelo ponto médio,
+\[
+x_k=\frac{a_k+b_k}{2}.
+\]
+É um método robusto, pois preserva o intervalo, mas tende a requerer mais iterações.
+
+\textbf{Falsa Posição.} Usa a interseção da reta secante dos extremos com o eixo $x$,
+\[
+x_k=\frac{a_kf(b_k)-b_kf(a_k)}{f(b_k)-f(a_k)},
+\]
+e preserva o intervalo com mudança de sinal. Pode acelerar a aproximação, embora possa estagnar quando um dos extremos permanece quase fixo.
+
+\textbf{Ponto Fixo.} Reescreve-se $f(x)=0$ como $x=\phi(x)$ e calcula-se $x_{k+1}=\phi(x_k)$. A convergência depende da escolha de $\phi$ e da aproximação inicial.
+
+\textbf{Newton.} A aproximação é atualizada pela reta tangente,
+\[
+x_{k+1}=x_k-\frac{f(x_k)}{f'(x_k)}.
+\]
+Quando a derivada é adequada e o chute inicial é favorável, apresenta convergência rápida; porém exige o cálculo de $f'$ e requer cuidado quando a derivada é nula ou muito pequena.
+
+\textbf{Secante.} Substitui a derivada de Newton pela inclinação entre duas aproximações consecutivas,
+\[
+x_{k+1}=x_k-f(x_k)\frac{x_k-x_{k-1}}{f(x_k)-f(x_{k-1})}.
+\]
+Assim, não necessita de derivada explícita, mas não conserva necessariamente o intervalo inicial.
+
+\textbf{Método proposto.} A estratégia experimental preserva inicialmente um \textit{bracket} com troca de sinal. Em cada iteração, calcula o ponto de bissecção e o de falsa posição; identifica a única região que ainda contém a mudança de sinal e, quando seguro, tenta uma extrapolação baseada na distância entre esses dois pontos. Caso a extrapolação não seja interna e finita, aplica bissecção como \textit{fallback}. Dessa forma, combina a robustez de métodos com intervalo e a possibilidade de passos mais agressivos.
+
+Para todos os métodos, foi usada tolerância $10^{-6}$ e máximo de 1000 iterações. A parada ocorre por raiz exata, residual, passo, largura de intervalo ou limite de iterações, conforme a natureza do método.
+
+\section{Problemas e isolamento das raízes}
+
+A Tabela~\ref{tab:isolamento} apresenta os problemas do enunciado, os parâmetros da varredura e os subintervalos obtidos. Como há uma mudança de sinal em cada caso, os intervalos listados justificam a aplicação dos métodos que dependem de \textit{bracketing}. A raiz de referência foi usada somente para calcular o erro absoluto do benchmark.
+
+\begin{table}[H]
+\centering
+\caption{Tabelamento resumido do isolamento e raízes de referência.}
+\label{tab:isolamento}
+\small
+\begin{tabular}{p{1.1cm}p{6.5cm}c c c}
+\toprule
+Problema & Função e intervalo inicial & $h$ & Subintervalo isolado & Raiz de referência \\
+\midrule
+$f_1$ & $2x^4+4x^3+3x^2-10x-15$, $[0,3]$ & 0,6 & $[1,2;1,8]$ & 1,4928787087 \\
+$f_2$ & $x^5-2x^4-9x^3+22x^2+4x-24$, $[0,5]$ & 0,7 & $[1,4;2,1]$ & 2,0000000000 \\
+$f_3$ & $5x^3+x^2-e^{1-2x}+\cos(x)+20$, $[-5,5]$ & 0,5 & $[-1,0;-0,5]$ & -0,9295604598 \\
+$f_4$ & $x\sin(x)+4$, $[1,5]$ & 0,5 & $[4,0;4,5]$ & 4,3232395437 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+As funções avaliadas pelo tabelamento apresentam mudança de sinal nos intervalos da tabela. Esse comportamento corresponde à passagem do gráfico da função pelo eixo $x$ no subintervalo indicado; o refinamento subsequente reduz a incerteza sobre a coordenada da interseção.
+
+\section{Resultados do benchmark}
+
+As Tabelas~\ref{tab:f1}--\ref{tab:f4} apresentam os dados obtidos pela execução do benchmark. A coluna ``Aval.'' é o total de avaliações de $f$, $f'$ e $\phi$, quando aplicáveis. Os tempos são medianas de 30 execuções, em microssegundos. ``Tol. fun.'', ``Tol. passo'' e ``Tol. int.'' indicam, respectivamente, término por tolerância de função, de passo e de intervalo.
+
+\begin{table}[H]
+\centering
+\caption{Resultados para $f_1$ no intervalo isolado $[1,2;1,8]$.}
+\label{tab:f1}
+\small
+\begin{tabular}{l l r r r r r}
+\toprule
+Método & Status & Raiz aproximada & Erro absoluto & Iter. & Aval. & Tempo ($\mu$s) \\
+\midrule
+Proposto & Tol. fun. & 1,4928787066 & $2,02\times10^{-9}$ & 4 & 11 & 1,224 \\
+Bissecção & Tol. int. & 1,4928783417 & $3,67\times10^{-7}$ & 19 & 22 & 2,248 \\
+Falsa Posição & Tol. passo & 1,4928785164 & $1,92\times10^{-7}$ & 10 & 12 & 1,541 \\
+Secante & Tol. fun. & 1,4928787087 & $8,88\times10^{-13}$ & 6 & 8 & 1,075 \\
+Newton & Tol. fun. & 1,4928787106 & $1,91\times10^{-9}$ & 2 & 5 & 0,506 \\
+Ponto Fixo & Tol. passo & 1,4928785469 & $1,62\times10^{-7}$ & 9 & 19 & 1,233 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Resultados para $f_2$ no intervalo isolado $[1,4;2,1]$.}
+\label{tab:f2}
+\small
+\begin{tabular}{l l r r r r r}
+\toprule
+Método & Status & Raiz aproximada & Erro absoluto & Iter. & Aval. & Tempo ($\mu$s) \\
+\midrule
+Proposto & Tol. fun. & 1,9981050592 & $1,89\times10^{-3}$ & 3 & 7 & 1,073 \\
+Bissecção & Raiz exata$^*$ & 2,0000030518 & $3,05\times10^{-6}$ & 15 & 18 & 2,484 \\
+Falsa Posição & Máx. iterações & 2,0109371863 & $1,09\times10^{-2}$ & 1000 & 1002 & 183,964 \\
+Secante & Tol. fun. & 2,0031019313 & $3,10\times10^{-3}$ & 13 & 15 & 1,851 \\
+Newton & Tol. fun. & 1,9959543026 & $4,05\times10^{-3}$ & 10 & 21 & 1,928 \\
+Ponto Fixo & Tol. fun. & 1,9994364445 & $5,64\times10^{-4}$ & 2 & 5 & 0,647 \\
+\bottomrule
+\multicolumn{7}{p{14cm}}{\footnotesize $^*$ A avaliação em ponto de precisão finita retornou $f(x)=0$, embora a diferença em relação à raiz de referência ainda seja visível.}
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Resultados para $f_3$ no intervalo isolado $[-1,0;-0,5]$.}
+\label{tab:f3}
+\small
+\begin{tabular}{l l r r r r r}
+\toprule
+Método & Status & Raiz aproximada & Erro absoluto & Iter. & Aval. & Tempo ($\mu$s) \\
+\midrule
+Proposto & Tol. fun. & -0,9295604395 & $2,03\times10^{-8}$ & 4 & 12 & 0,790 \\
+Bissecção & Tol. int. & -0,9295597076 & $7,52\times10^{-7}$ & 18 & 21 & 1,154 \\
+Falsa Posição & Tol. passo & -0,9295603974 & $6,24\times10^{-8}$ & 6 & 8 & 0,679 \\
+Secante & Tol. fun. & -0,9295604708 & $1,10\times10^{-8}$ & 5 & 7 & 0,593 \\
+Newton & Tol. fun. & -0,9295604598 & $6,11\times10^{-12}$ & 4 & 9 & 0,504 \\
+Ponto Fixo & Tol. passo & -0,9295605840 & $1,24\times10^{-7}$ & 13 & 27 & 2,055 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Resultados para $f_4$ no intervalo isolado $[4,0;4,5]$.}
+\label{tab:f4}
+\small
+\begin{tabular}{l l r r r r r}
+\toprule
+Método & Status & Raiz aproximada & Erro absoluto & Iter. & Aval. & Tempo ($\mu$s) \\
+\midrule
+Proposto & Tol. fun. & 4,3232396535 & $1,10\times10^{-7}$ & 4 & 10 & 0,421 \\
+Bissecção & Tol. int. & 4,3232402802 & $7,36\times10^{-7}$ & 18 & 21 & 0,544 \\
+Falsa Posição & Tol. fun. & 4,3232398796 & $3,36\times10^{-7}$ & 7 & 9 & 0,577 \\
+Secante & Tol. fun. & 4,3232397984 & $2,55\times10^{-7}$ & 4 & 6 & 0,379 \\
+Newton & Tol. fun. & 4,3232395437 & $1,77\times10^{-11}$ & 3 & 7 & 0,331 \\
+Ponto Fixo & Tol. fun. & 4,3232392834 & $2,60\times10^{-7}$ & 22 & 45 & 1,667 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Discussão dos resultados}
+
+Nos problemas $f_1$, $f_3$ e $f_4$, todos os métodos obtiveram aproximações compatíveis com a tolerância adotada. Newton foi o método com menos iterações em $f_1$ e $f_4$, e apresentou os menores erros em $f_3$ e $f_4$. A Secante também apresentou bom desempenho, com poucas avaliações de $f$ e sem necessidade da derivada explícita. A Bissecção foi a mais previsível: usou mais iterações, porém preservou o intervalo e atingiu a largura esperada em todos os casos.
+
+O método proposto convergiu nos quatro problemas com quatro ou menos iterações. Em $f_1$ e $f_3$, foram registrados \textit{fallbacks} para bissecção quando a extrapolação não era segura; esse comportamento é desejável, pois mantém a robustez do intervalo. Em $f_2$, apesar de o residual ter satisfeito a tolerância em poucas iterações, o erro absoluto foi da ordem de $10^{-3}$. Isso ocorre porque $x=2$ é uma raiz múltipla da função: próximo dela, a função varia pouco e $|f(x)|$ pode ser pequeno mesmo quando $x$ ainda não está tão próximo da raiz.
+
+O problema $f_2$ foi o caso mais desafiador. A Falsa Posição atingiu o limite de 1000 iterações, com erro absoluto aproximadamente $1,09\times10^{-2}$ e tempo muito superior aos demais. Esse resultado ilustra uma limitação conhecida do método: em certas geometrias da função, a atualização de um extremo pode progredir lentamente. Para esse problema, o Ponto Fixo obteve o menor erro entre os métodos que usaram o critério de função, mas a Bissecção apresentou a aproximação mais próxima da raiz de referência entre os seis métodos.
+
+Como os tempos medidos estão abaixo de alguns microssegundos para a maior parte dos casos, pequenas diferenças temporais não devem ser usadas isoladamente para escolher um método. O número de iterações, as avaliações e a estabilidade de convergência são métricas mais informativas nesse cenário. A mediana de 30 repetições reduz ruído, mas não elimina a influência do sistema operacional, do compilador e da resolução do relógio.
+
+\section{Conclusão}
+
+Foram implementadas as etapas de isolamento e refinamento exigidas, além de uma estratégia híbrida proposta. O isolamento identificou um subintervalo com mudança de sinal para cada problema. O benchmark permitiu observar que métodos de intervalo, como Bissecção e Falsa Posição, oferecem informação geométrica e maior controle do domínio, enquanto Newton e Secante podem exigir menos iterações quando os pontos iniciais são adequados.
+
+Não há um método universalmente superior. Newton destacou-se na maior parte dos problemas regulares; a Secante foi competitiva sem usar derivada; a Bissecção mostrou regularidade; e o método proposto combinou poucos passos com mecanismos de segurança. O segundo problema reforçou a importância de analisar simultaneamente a aproximação da raiz e o residual, principalmente na presença de raiz múltipla.
+
+\section*{Participação dos integrantes}
+
+O trabalho foi realizado pelos integrantes Marco Antônio Fontes Leite, Maria Eduarda da Silva Ribeiro e Matheus Raphael Trindade Guedes.
+
+\begin{thebibliography}{9}
+
+\bibitem{ruggiero}
+M. A. G. Ruggiero e V. L. R. Lopes.
+\textit{Cálculo Numérico: Aspectos Teóricos e Computacionais}.
+2. ed. São Paulo: Makron Books, 1997.
+
+\bibitem{chapra}
+S. C. Chapra e R. P. Canale.
+\textit{Métodos Numéricos para Engenharia}.
+5. ed. Porto Alegre: Bookman, 2008.
+
+\bibitem{enunciado}
+Universidade Federal do Rio Grande do Norte.
+\textit{Avaliação 01: Descritivo de Implementação -- Cálculo Numérico (DIM0404)}.
+Material da disciplina.
+
+\end{thebibliography}
+
+\end{document}

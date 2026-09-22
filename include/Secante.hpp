@@ -2,11 +2,13 @@
 #define SECANTE_HPP
 
 #include "Tipos.hpp"
-#include <cmath>
+
 #include <chrono>
+#include <cmath>
+#include <limits>
 
 class Secante {
-    public:
+public:
     static ResultadoMetodo executar(
         const std::function<double(double)>& f,
         double x0,
@@ -16,70 +18,103 @@ class Secante {
     ) {
         ResultadoMetodo res;
         res.nomeMetodo = "Secante";
+        const double indisponivel = std::numeric_limits<double>::quiet_NaN();
+        res.intervaloFinal = {indisponivel, indisponivel};
+        const auto inicio = std::chrono::high_resolution_clock::now();
+        const auto finalizar = [&res, &inicio]() {
+            const auto fim = std::chrono::high_resolution_clock::now();
+            res.tempoMicrosegundos = std::chrono::duration<double, std::micro>(fim - inicio).count();
+            return res;
+        };
+        const auto avaliar = [&f, &res](double x, double& valor) {
+            ++res.avaliacoesFuncao;
+            valor = f(x);
+            return std::isfinite(valor);
+        };
 
-        // inicio da contagem do tempo de execução
-        auto inicio = std::chrono::high_resolution_clock::now();
-
-        double x_ant = x0;
-        double x_atual = x1;
-        int iter = 0;
-
-        while (iter < maxIter){
-            double f_ant = f(x_ant);
-            double f_atual = f(x_atual);
-
-            // evita divisão por zero se f(x_atual) for quase igual a f(x_ant)
-            if (std::abs(f_atual - f_ant) < 1e-12){
-                res.raiz = x_atual;
-                res.fRaiz = f_atual;
-                res.iteracoes = iter;
-                res.convergiu = false;
-                res.mensagemErro = "Divisao por zero: f(x_k) e f(x_{k-1}) sao muito proximos";
-                return res;
-            }
-
-            // proximo pronto pela fórmula da secante
-            double proximo = x_atual - f_atual * (x_atual - x_ant) / (f_atual - f_ant);
-
-            // verificação de valores invalidos
-            if (!std::isfinite(proximo)){
-                res.raiz = x_atual;
-                res.fRaiz = f_atual;
-                res.iteracoes = iter;
-                res.convergiu = false;
-                res.mensagemErro = "O calculo da Secante gerou um valor numerico invalido";
-                return res;
-            }
-
-            iter++;
-
-            // critério de parada: variação em x ou f(x) próximo de zero
-            if (std::abs(proximo - x_atual) < tol || std::abs(f(proximo)) < tol){
-                x_atual = proximo;
-                break;
-            }
-
-            // atualização para a próxima iteração
-            x_ant = x_atual;
-            x_atual = proximo;
+        if (!f || !std::isfinite(x0) || !std::isfinite(x1) || !std::isfinite(tol) || tol < 0.0 || maxIter <= 0) {
+            res.status = MetodoStatus::ArgumentoInvalido;
+            res.mensagemErro = "Funcao, aproximacoes, tolerancia ou maximo de iteracoes invalido";
+            return finalizar();
         }
 
-        // fim da contagem do tempo de execução
-        auto fim = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::micro> duracao = fim - inicio;
-
-        res.raiz = x_atual;
-        res.fRaiz = f(x_atual);
-        res.iteracoes = iter;
-        res.tempoMicrosegundos = duracao.count();
-        res.convergiu = (iter < maxIter);
-        if(!res.convergiu && res.mensagemErro.empty()){
-            res.mensagemErro = "Numero maximo de iteracoes atingido sem convergencia";
+        double anterior = x0;
+        double atual = x1;
+        double fAnterior;
+        double fAtual;
+        if (!avaliar(anterior, fAnterior) || !avaliar(atual, fAtual)) {
+            res.status = MetodoStatus::AvaliacaoNaoFinita;
+            res.mensagemErro = "A funcao gerou um valor nao finito";
+            return finalizar();
+        }
+        if (fAnterior == 0.0 || fAtual == 0.0) {
+            res.raiz = fAnterior == 0.0 ? anterior : atual;
+            res.fRaiz = fAnterior == 0.0 ? fAnterior : fAtual;
+            res.status = MetodoStatus::RaizExata;
+            res.convergiu = true;
+            return finalizar();
         }
 
-        return res;
+        for (int iteracao = 1; iteracao <= maxIter; ++iteracao) {
+            const double denominador = fAtual - fAnterior;
+            if (!std::isfinite(denominador) || denominador == 0.0) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.status = MetodoStatus::FalhaNumerica;
+                res.mensagemErro = "Denominador nulo ou nao finito na formula da secante";
+                return finalizar();
+            }
+            const double proximo = atual - fAtual * (atual - anterior) / denominador;
+            if (!std::isfinite(proximo)) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.status = MetodoStatus::FalhaNumerica;
+                res.mensagemErro = "A formula da secante gerou um valor nao finito";
+                return finalizar();
+            }
+            double fProximo;
+            if (!avaliar(proximo, fProximo)) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.status = MetodoStatus::AvaliacaoNaoFinita;
+                res.mensagemErro = "A funcao gerou um valor nao finito";
+                return finalizar();
+            }
+
+            res.raiz = proximo;
+            res.fRaiz = fProximo;
+            res.iteracoes = iteracao;
+            if (fProximo == 0.0) {
+                res.status = MetodoStatus::RaizExata;
+                res.convergiu = true;
+                return finalizar();
+            }
+            if (std::abs(fProximo) <= tol) {
+                res.status = MetodoStatus::ToleranciaFuncao;
+                res.convergiu = true;
+                return finalizar();
+            }
+            if (std::abs(proximo - atual) <= tol) {
+                res.status = MetodoStatus::ToleranciaPasso;
+                res.convergiu = true;
+                return finalizar();
+            }
+            anterior = atual;
+            fAnterior = fAtual;
+            atual = proximo;
+            fAtual = fProximo;
+        }
+
+        res.raiz = atual;
+        res.fRaiz = fAtual;
+        res.iteracoes = maxIter;
+        res.status = MetodoStatus::MaximoDeIteracoes;
+        res.mensagemErro = "Numero maximo de iteracoes atingido sem convergencia";
+        return finalizar();
     }
 };
-
 
 #endif // SECANTE_HPP

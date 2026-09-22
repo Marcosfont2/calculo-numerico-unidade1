@@ -2,8 +2,10 @@
 #define PONTO_FIXO_HPP
 
 #include "Tipos.hpp"
-#include <cmath>
+
 #include <chrono>
+#include <cmath>
+#include <limits>
 
 class PontoFixo {
 public:
@@ -16,55 +18,94 @@ public:
     ) {
         ResultadoMetodo res;
         res.nomeMetodo = "Ponto Fixo";
+        const double indisponivel = std::numeric_limits<double>::quiet_NaN();
+        res.intervaloFinal = {indisponivel, indisponivel};
+        const auto inicio = std::chrono::high_resolution_clock::now();
+        const auto finalizar = [&res, &inicio]() {
+            const auto fim = std::chrono::high_resolution_clock::now();
+            res.tempoMicrosegundos = std::chrono::duration<double, std::micro>(fim - inicio).count();
+            return res;
+        };
+        const auto avaliarFuncao = [&f, &res](double x, double& valor) {
+            ++res.avaliacoesFuncao;
+            valor = f(x);
+            return std::isfinite(valor);
+        };
+        const auto avaliarPhi = [&phi, &res](double x, double& valor) {
+            ++res.avaliacoesPhi;
+            valor = phi(x);
+            return std::isfinite(valor);
+        };
 
-        // início da contagem do tempo de execução
-        auto inicio = std::chrono::high_resolution_clock::now();
-
-        double x = x0;
-        int iter = 0;
-
-        // loop das iterações até atingir a tolerância ou número máximo
-        while (iter < maxIter) {
-            // calculo da próxima aproximação pela função de iteração
-            double proximo = phi(x);
-            // verificação se o resultado da função de iteração é válido
-            if (!std::isfinite(proximo)){
-                res.raiz = x;
-                res.fRaiz = f(x);
-                res.iteracoes = iter;
-                res.convergiu = false;
-                res.mensagemErro = "A função de iteracao gerou um valor invalido";
-                return res;
-            }
-
-            iter++;
-
-            // verificação do critério de parada
-            if (std::abs(proximo - x) < tol) {
-                x = proximo;
-                break;
-            }
-
-            // atualização da aproximaçâo para a próxima iteração
-            x = proximo;
+        if (!f || !phi || !std::isfinite(x0) || !std::isfinite(tol) || tol < 0.0 || maxIter <= 0) {
+            res.status = MetodoStatus::ArgumentoInvalido;
+            res.mensagemErro = "Funcao, iteracao, aproximacao, tolerancia ou maximo de iteracoes invalido";
+            return finalizar();
         }
 
-        // fim da contagem do tempo de execução
-        auto fim = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::micro> duracao = fim - inicio;
-
-        res.raiz = x;
-        res.fRaiz = f(x);
-        res.iteracoes = iter;
-        res.tempoMicrosegundos = duracao.count();
-        res.convergiu = (iter < maxIter);
-
-        // mensagem de erro se o método não convergir dentro do limite
-        if (!res.convergiu && res.mensagemErro.empty()) {
-            res.mensagemErro = "Numero maximo de iteracoes atingido";
+        double atual = x0;
+        double fAtual;
+        if (!avaliarFuncao(atual, fAtual)) {
+            res.status = MetodoStatus::AvaliacaoNaoFinita;
+            res.mensagemErro = "A funcao gerou um valor nao finito";
+            return finalizar();
+        }
+        if (fAtual == 0.0) {
+            res.raiz = atual;
+            res.fRaiz = fAtual;
+            res.status = MetodoStatus::RaizExata;
+            res.convergiu = true;
+            return finalizar();
         }
 
-        return res;
+        for (int iteracao = 1; iteracao <= maxIter; ++iteracao) {
+            double proximo;
+            if (!avaliarPhi(atual, proximo)) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.status = MetodoStatus::AvaliacaoNaoFinita;
+                res.mensagemErro = "A funcao de iteracao gerou um valor nao finito";
+                return finalizar();
+            }
+            double fProximo;
+            if (!avaliarFuncao(proximo, fProximo)) {
+                res.raiz = atual;
+                res.fRaiz = fAtual;
+                res.iteracoes = iteracao - 1;
+                res.status = MetodoStatus::AvaliacaoNaoFinita;
+                res.mensagemErro = "A funcao gerou um valor nao finito";
+                return finalizar();
+            }
+
+            res.raiz = proximo;
+            res.fRaiz = fProximo;
+            res.iteracoes = iteracao;
+            if (fProximo == 0.0) {
+                res.status = MetodoStatus::RaizExata;
+                res.convergiu = true;
+                return finalizar();
+            }
+            if (std::abs(fProximo) <= tol) {
+                res.status = MetodoStatus::ToleranciaFuncao;
+                res.convergiu = true;
+                return finalizar();
+            }
+            if (std::abs(proximo - atual) <= tol) {
+                res.status = MetodoStatus::ToleranciaPasso;
+                res.convergiu = true;
+                return finalizar();
+            }
+            atual = proximo;
+            fAtual = fProximo;
+        }
+
+        res.raiz = atual;
+        res.fRaiz = fAtual;
+        res.iteracoes = maxIter;
+        res.status = MetodoStatus::MaximoDeIteracoes;
+        res.mensagemErro = "Numero maximo de iteracoes atingido sem convergencia";
+        return finalizar();
     }
 };
 
