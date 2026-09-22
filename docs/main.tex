@@ -190,6 +190,36 @@ Ponto Fixo & Tol. fun. & 4,3232392834 & $2,60\times10^{-7}$ & 22 & 45 & 1,667 \\
 
 \section{Discussão dos resultados}
 
+\subsection{Análise do Método do Ponto Fixo}
+
+A escolha da função de iteração $\phi(x)$ é o fator determinante para o sucesso do Método do Ponto Fixo. Nos testes com as funções $\phi(x)$ iniciais (isolamento ingênuo do termo linear ou de maior grau), obtiveram-se derivadas $|\phi'(r)| \ge 1$, o que causou divergência por estouro numérico (\texttt{inf}) em $f_1$ e estagnou o algoritmo no limite de 1000 iterações nas demais funções. Ao reordenar as equações aplicando operadores inversos (raízes, logaritmos e arcos trigonométricos), garantiu-se a condição de contração $|\phi'(r)| < 1$, assegurando a convergência rápida em todos os casos.
+
+\begin{table}[H]
+\centering
+\caption{Comparação entre funções de iteração ingênuas e contrativas para o Método do Ponto Fixo.}
+\label{tab:ponto_fixo_comparativo}
+\small
+\begin{tabular}{c l l c r l}
+\toprule
+Função & Abordagem & Função de Iteração $\phi(x)$ & $|\phi'(r)|$ & Iter. & Resultado \\
+\midrule
+$f_1$ & Função Ingênua & $\phi(x) = \frac{2x^4 + 4x^3 + 3x^2 - 15}{10}$ & $6{,}23$ & 7 & Divergiu (\texttt{inf}) \\
+& Função Nova & $\phi(x) = \sqrt{\frac{10x + 15}{2x^2 + 4x + 3}}$ & $0{,}30$ & 9 & Convergiu \\
+\midrule
+$f_2$ & Função Ingênua & $\phi(x) = \frac{-x^5 + 2x^4 + 9x^3 - 22x^2 + 24}{4}$ & $1{,}00$ & 1000 & Estagnou \\
+& Função Nova & $\phi(x) = x - \sqrt[3]{\frac{f_2(x)}{12}}$ & $0{,}00$ & 5 & Convergiu (Exato) \\
+\midrule
+$f_3$ & Função Ingênua & $\phi(x) = \sqrt[3]{\frac{-x^2 + e^{1-2x} - \cos(x) - 20}{5}}$ & $2{,}61$ & 1000 & Divergiu \\
+& Função Nova & $\phi(x) = \frac{1 - \ln(5x^3 + x^2 + \cos(x) + 20)}{2}$ & $0{,}34$ & 13 & Convergiu \\
+\midrule
+$f_4$ & Função Ingênua & $\phi(x) = -\frac{4}{\sin(x)}$ & $1{,}77$ & 1000 & Oscilou \\
+& Função Nova & $\phi(x) = \pi + \arcsin\left(\frac{4}{x}\right)$ & $0{,}56$ & 22 & Convergiu \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Discussão geral dos métodos}
+
 Nos problemas $f_1$, $f_3$ e $f_4$, todos os métodos obtiveram aproximações compatíveis com a tolerância adotada. Newton foi o método com menos iterações em $f_1$ e $f_4$, e apresentou os menores erros em $f_3$ e $f_4$. A Secante também apresentou bom desempenho, com poucas avaliações de $f$ e sem necessidade da derivada explícita. A Bissecção foi a mais previsível: usou mais iterações, porém preservou o intervalo e atingiu a largura esperada em todos os casos.
 
 O método proposto convergiu nos quatro problemas com quatro ou menos iterações. Em $f_1$ e $f_3$, foram registrados \textit{fallbacks} para bissecção quando a extrapolação não era segura; esse comportamento é desejável, pois mantém a robustez do intervalo. Em $f_2$, apesar de o residual ter satisfeito a tolerância em poucas iterações, o erro absoluto foi da ordem de $10^{-3}$. Isso ocorre porque $x=2$ é uma raiz múltipla da função: próximo dela, a função varia pouco e $|f(x)|$ pode ser pequeno mesmo quando $x$ ainda não está tão próximo da raiz.
